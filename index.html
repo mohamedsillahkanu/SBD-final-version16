@@ -513,11 +513,25 @@
                             <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
                             VIDEO GUIDE
                         </button>
-                        <button onclick="document.getElementById('targetsFileInput').click()" class="control-btn" id="targetsBtn" style="background:linear-gradient(135deg,#5a1a6a,#9b27af);color:#fff;border-color:#9b27af;" title="Upload targets CSV">
-                            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                            TARGETS
+                        <!-- Module tab buttons -->
+                        <button class="module-btn" onclick="openModule('monitoring')"     style="background:#fff;color:#004080;border-color:#004080;">
+                            <svg viewBox="0 0 24 24" stroke-width="2"><path d="M3 3h18v18H3zM3 9h18M9 21V9"/></svg>MONITORING
                         </button>
-                        <input type="file" id="targetsFileInput" accept=".csv" style="display:none" onchange="loadTargetsFile(this)">
+                        <button class="module-btn" onclick="openModule('reconciliation')" style="background:#fff;color:#1a7a4a;border-color:#1a7a4a;">
+                            <svg viewBox="0 0 24 24" stroke-width="2"><path d="M9 7h6M9 11h6M9 15h4M17 21H7a2 2 0 01-2-2V5a2 2 0 012-2h7l5 5v11a2 2 0 01-2 2z"/></svg>RECONCILIATION
+                        </button>
+                        <button class="module-btn" onclick="openModule('device')"         style="background:#fff;color:#7a1a7a;border-color:#7a1a7a;">
+                            <svg viewBox="0 0 24 24" stroke-width="2"><path d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>DEVICES
+                        </button>
+                        <button class="module-btn" onclick="openModule('movement')"       style="background:#fff;color:#b8430a;border-color:#b8430a;">
+                            <svg viewBox="0 0 24 24" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>ITN MOVEMENT
+                        </button>
+                        <button class="module-btn" onclick="openModule('attendance')"     style="background:#fff;color:#0a5a7a;border-color:#0a5a7a;">
+                            <svg viewBox="0 0 24 24" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>ATTENDANCE
+                        </button>
+                        <button class="module-btn" onclick="openModule('report')"         style="background:#fff;color:#6a4a0a;border-color:#6a4a0a;">
+                            <svg viewBox="0 0 24 24" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>REPORT
+                        </button>
                     </div>
 
                     <!-- PASSWORD MODAL -->
@@ -1060,58 +1074,176 @@
             video.addEventListener('error',   () => overlay.style.opacity = '0');
         });
 
-        // ── TARGETS FILE LOADER ─────────────────────────────
-        // CSV format: district, chiefdom, phu, schools_target
-        // (column names are flexible — detected automatically)
-        window._TARGETS = {};   // { "district|chiefdom|phu": number }
-
-        window.loadTargetsFile = function(input) {
-            const file = input.files[0];
-            if (!file) return;
-            if (typeof Papa === 'undefined') { showNotification('PapaParse not loaded.', 'error'); return; }
-            Papa.parse(file, {
-                header: true, skipEmptyLines: true,
-                complete: function(results) {
-                    const rows = results.data;
-                    if (!rows.length) { showNotification('Targets file is empty.', 'error'); return; }
-                    window._TARGETS = {};
-                    // Detect column names (case-insensitive)
-                    const hdr = Object.keys(rows[0]).map(k => k.toLowerCase().trim());
-                    const col = (names) => {
-                        for (const n of names) { const i = hdr.findIndex(h => h.includes(n)); if (i>=0) return Object.keys(rows[0])[i]; }
-                        return null;
-                    };
-                    const dCol  = col(['district','adm1']);
-                    const cCol  = col(['chiefdom','adm2']);
-                    const pCol  = col(['phu','facility','hf','adm3','section']);
-                    const tCol  = col(['target','schools_target','total','count','schools']);
-                    let count = 0;
-                    rows.forEach(r => {
-                        const d = (r[dCol]||'').trim().toLowerCase();
-                        const c = (r[cCol]||'').trim().toLowerCase();
-                        const p = pCol ? (r[pCol]||'').trim().toLowerCase() : '';
-                        const t = parseInt(r[tCol]) || 0;
-                        if (d && t) {
-                            const key = [d, c, p].filter(Boolean).join('|');
-                            window._TARGETS[key] = (window._TARGETS[key]||0) + t;
-                            count++;
-                        }
-                    });
-                    showNotification('Targets loaded: ' + count + ' rows. Reopen ANALYSIS to see.', 'success');
-                    input.value = '';
-                    // If analysis modal is open, refresh it
-                    if (document.getElementById('analysisModal')?.classList.contains('show')) {
-                        if (typeof window._sheetRows !== 'undefined') window.runAnalysis(window._sheetRows);
-                    }
-                },
-                error: () => showNotification('Could not read targets file.', 'error')
-            });
-        };
         </script>
 
         <div class="notification" id="notification"><span id="notificationText"></span></div>
 
     </div><!-- /appMain -->
+
+    <!-- ══════════════════════════════════════════
+         MODULE TABS (full-screen iframes)
+    ══════════════════════════════════════════ -->
+    <style>
+    .module-overlay{
+        position:fixed;inset:0;background:#fff;z-index:8000;
+        display:none;flex-direction:column;
+    }
+    .module-overlay.show{display:flex;}
+    .module-topbar{
+        background:linear-gradient(135deg,#002d5a,#004080);
+        color:#fff;padding:12px 18px;
+        display:flex;align-items:center;gap:12px;
+        flex-shrink:0;box-shadow:0 2px 10px rgba(0,0,0,.2);
+    }
+    .module-title{
+        font-family:'Oswald',sans-serif;font-size:16px;
+        font-weight:600;letter-spacing:.8px;text-transform:uppercase;flex:1;
+    }
+    .module-close{
+        background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);
+        color:#fff;border-radius:7px;padding:6px 14px;
+        font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:.5px;
+        cursor:pointer;display:flex;align-items:center;gap:5px;transition:background .15s;
+    }
+    .module-close:hover{background:rgba(220,53,69,.7);border-color:#dc3545;}
+    .module-close svg{width:13px;height:13px;stroke:#fff;}
+    .module-iframe{flex:1;border:none;width:100%;background:#f0f4f8;}
+    .module-loading{
+        flex:1;display:flex;flex-direction:column;align-items:center;
+        justify-content:center;gap:16px;background:#f0f4f8;
+    }
+    .module-spinner{
+        width:44px;height:44px;border:4px solid #d0dce8;
+        border-top-color:#004080;border-radius:50%;
+        animation:mod-spin .8s linear infinite;
+    }
+    @keyframes mod-spin{to{transform:rotate(360deg);}}
+    .module-not-loaded{
+        flex:1;display:flex;flex-direction:column;align-items:center;
+        justify-content:center;gap:12px;background:#f0f4f8;text-align:center;padding:40px;
+    }
+    .module-not-loaded svg{width:52px;height:52px;stroke:#c0ccd8;fill:none;}
+    .module-not-loaded h3{font-family:'Oswald',sans-serif;font-size:17px;color:#004080;text-transform:uppercase;letter-spacing:.5px;}
+    .module-not-loaded p{font-size:13px;color:#8090a0;max-width:360px;line-height:1.6;}
+    .module-not-loaded code{background:#e4eaf2;padding:2px 8px;border-radius:4px;font-size:12px;color:#004080;}
+    /* Module buttons in controls bar */
+    .module-btn{
+        display:flex;align-items:center;gap:5px;
+        padding:7px 12px;border-radius:8px;
+        font-family:'Oswald',sans-serif;font-size:11px;
+        font-weight:500;letter-spacing:.5px;text-transform:uppercase;
+        cursor:pointer;transition:all .15s;border:1.5px solid;
+        flex-shrink:0;
+    }
+    .module-btn svg{width:13px;height:13px;stroke:currentColor;fill:none;}
+    </style>
+
+    <!-- The 6 module overlays -->
+    <div id="mod-monitoring"    class="module-overlay"></div>
+    <div id="mod-reconciliation" class="module-overlay"></div>
+    <div id="mod-device"        class="module-overlay"></div>
+    <div id="mod-movement"      class="module-overlay"></div>
+    <div id="mod-attendance"    class="module-overlay"></div>
+    <div id="mod-report"        class="module-overlay"></div>
+
+    <script>
+    // Module definitions
+    const MODULES = [
+        { id:'monitoring',     file:'monitoring.html',           label:'Monitoring',                   icon:'M3 3h18v18H3zM3 9h18M9 21V9' },
+        { id:'reconciliation', file:'itn_reconciliation.html',   label:'ITN Reconciliation',           icon:'M9 7h6M9 11h6M9 15h4M17 21H7a2 2 0 01-2-2V5a2 2 0 012-2h7l5 5v11a2 2 0 01-2 2z' },
+        { id:'device',         file:'device_tracking.html',      label:'Device Tracking',              icon:'M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z' },
+        { id:'movement',       file:'itn_movement.html',         label:'ITN Movement',                 icon:'M5 12h14M12 5l7 7-7 7' },
+        { id:'attendance',     file:'attendance_payment.html',   label:'Attendance & Payment',         icon:'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 100 8 4 4 0 000-8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75' },
+        { id:'report',         file:'distribution_report.html',  label:'Distribution Report',          icon:'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8' }
+    ];
+
+    // Build each overlay on first open (lazy)
+    function openModule(id) {
+        const mod  = MODULES.find(m => m.id === id);
+        const el   = document.getElementById('mod-' + id);
+        if (!mod || !el) return;
+
+        // Build inner HTML once
+        if (!el.dataset.built) {
+            el.dataset.built = '1';
+            el.innerHTML = `
+              <div class="module-topbar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" width="20" height="20" style="flex-shrink:0"><path d="${mod.icon}"/></svg>
+                <div class="module-title">${mod.label}</div>
+                <button class="module-close" onclick="closeModule('${id}')">
+                  <svg viewBox="0 0 24 24" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>CLOSE
+                </button>
+              </div>
+              <div class="module-loading" id="mod-loading-${id}">
+                <div class="module-spinner"></div>
+                <div style="font-family:'Oswald',sans-serif;font-size:13px;color:#607080;letter-spacing:.5px;">Loading ${mod.label}…</div>
+              </div>
+              <iframe class="module-iframe" id="mod-frame-${id}" src=""
+                style="display:none;"
+                onload="onModuleLoad('${id}')"
+                onerror="onModuleError('${id}')">
+              </iframe>
+              <div class="module-not-loaded" id="mod-error-${id}" style="display:none;">
+                <svg viewBox="0 0 24 24" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6"/></svg>
+                <h3>${mod.label}</h3>
+                <p>The file <code>${mod.file}</code> was not found.<br>
+                Upload <strong>${mod.file}</strong> to your deployment folder (same location as <strong>index.html</strong>) and reload.</p>
+              </div>`;
+
+            // Start loading the iframe
+            setTimeout(() => {
+                const frame = document.getElementById('mod-frame-' + id);
+                if (frame) frame.src = mod.file;
+            }, 50);
+        }
+
+        el.classList.add('show');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function onModuleLoad(id) {
+        const frame   = document.getElementById('mod-frame-'   + id);
+        const loading = document.getElementById('mod-loading-' + id);
+        const errDiv  = document.getElementById('mod-error-'   + id);
+        if (!frame) return;
+        // Check if iframe loaded a real page (src not blank)
+        try {
+            // If same-origin and file missing, some browsers still fire onload with empty doc
+            const doc = frame.contentDocument || frame.contentWindow?.document;
+            if (doc && (doc.title === '' && doc.body && doc.body.innerHTML.trim() === '')) {
+                onModuleError(id); return;
+            }
+        } catch(e) { /* cross-origin — assume loaded fine */ }
+        if (loading) loading.style.display = 'none';
+        if (errDiv)  errDiv.style.display  = 'none';
+        if (frame)   frame.style.display   = 'block';
+    }
+
+    function onModuleError(id) {
+        const frame   = document.getElementById('mod-frame-'   + id);
+        const loading = document.getElementById('mod-loading-' + id);
+        const errDiv  = document.getElementById('mod-error-'   + id);
+        if (loading) loading.style.display = 'none';
+        if (frame)   frame.style.display   = 'none';
+        if (errDiv)  errDiv.style.display  = 'flex';
+    }
+
+    function closeModule(id) {
+        const el = document.getElementById('mod-' + id);
+        if (el) el.classList.remove('show');
+        document.body.style.overflow = '';
+    }
+
+    window.openModule  = openModule;
+    window.closeModule = closeModule;
+
+    // Close on Escape
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') {
+            MODULES.forEach(m => closeModule(m.id));
+        }
+    });
+    </script>
 
     <script src="script_option2.js"></script>
     <script src="ai_agent.js"></script>
