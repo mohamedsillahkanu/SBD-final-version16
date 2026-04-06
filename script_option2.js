@@ -4,7 +4,7 @@
 const CONFIG = {
     SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbymRy-M5v0fVLWUjw4IXYhd1oIR2ZvnP_Dzr_iGR-Th0cMIpmE2ntGeujWYH7-C6NHIzA/exec',
     SHEET_URL:  'https://docs.google.com/spreadsheets/d/1cXlYiTMzcRP1BCj9mt1JXoK_pjgWbRtDEEQUPMg2HPs/edit?usp=sharing',
-    CSV_FILE:   'cascading_data1.csv',
+    CSV_FILE:   'cascading_data.csv',
     ADMIN_USER: 'admin',
     ADMIN_PASS: 'admin123'
 };
@@ -90,23 +90,54 @@ window.addEventListener('beforeinstallprompt', e => {
     e.preventDefault();
     deferredPrompt = e;
     const btn = document.getElementById('installBtn');
-    if (btn) btn.style.opacity = '1';
+    if (btn) {
+        btn.style.opacity = '1';
+        btn.title = 'Install app on your device';
+    }
+    console.log('[PWA] Install prompt available');
 });
 
 window.addEventListener('appinstalled', () => {
     deferredPrompt = null;
-    showNotification('App installed successfully!', 'success');
+    const btn = document.getElementById('installBtn');
+    if (btn) btn.style.opacity = '0.4';
+    showNotification('App installed successfully! ✓', 'success');
+    console.log('[PWA] App installed');
 });
 
 function setupInstallButton() {
     const btn = document.getElementById('installBtn');
     if (!btn) return;
+
+    // Check if already running as installed PWA
+    const isInstalled = window.matchMedia('(display-mode: standalone)').matches
+                     || window.navigator.standalone === true;
+
+    if (isInstalled) {
+        btn.style.opacity = '0.4';
+        btn.title = 'Already installed';
+    }
+
     btn.addEventListener('click', async () => {
-        if (!deferredPrompt) { showNotification('App already installed or unavailable.', 'info'); return; }
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        if (outcome === 'accepted') showNotification('App installed successfully!', 'success');
-        deferredPrompt = null;
+        // Running as installed PWA
+        if (window.matchMedia('(display-mode: standalone)').matches) {
+            showNotification('App is already installed and running.', 'info');
+            return;
+        }
+        // Prompt available — trigger it
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            deferredPrompt = null;
+            if (outcome === 'accepted') {
+                showNotification('Installing app…', 'success');
+            } else {
+                showNotification('Install cancelled.', 'info');
+            }
+            return;
+        }
+        // No prompt — browser already handled it or it's not supported
+        showNotification('To install: tap the browser menu → "Add to Home Screen" / "Install App".', 'info');
     });
 }
 
@@ -118,21 +149,28 @@ window.updateApp = async function() {
     if (!btn) return;
     btn.disabled = true;
     btn.innerHTML = '<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin 1s linear infinite"><path d="M21 2v6h-6M3 12a9 9 0 0115.36-6.36L21 8M3 22v-6h6M21 12a9 9 0 01-15.36 6.36L3 16"/></svg> UPDATING...';
-    showNotification('Checking for updates...', 'info');
+    showNotification('Clearing cache and updating…', 'info');
     try {
+        // Tell active SW to skip waiting
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
+            navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_CACHE' });
+        }
+        // Unregister all service workers
         if ('serviceWorker' in navigator) {
             const regs = await navigator.serviceWorker.getRegistrations();
             for (const r of regs) await r.unregister();
         }
+        // Wipe all caches
         if ('caches' in window) {
             const names = await caches.keys();
-            for (const n of names) await caches.delete(n);
+            await Promise.all(names.map(n => caches.delete(n)));
         }
-        setTimeout(() => cacheImagesForOffline(), 500);
-        showNotification('Update complete! Reloading...', 'success');
-        setTimeout(() => window.location.reload(true), 1000);
+        showNotification('Update complete! Reloading…', 'success');
+        setTimeout(() => window.location.reload(true), 800);
     } catch (err) {
-        showNotification('Update failed. Please try again.', 'error');
+        console.error('[Update] Failed:', err);
+        showNotification('Update failed — try again.', 'error');
         btn.disabled = false;
         btn.innerHTML = '<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6M3 12a9 9 0 0115.36-6.36L21 8M3 22v-6h6M21 12a9 9 0 01-15.36 6.36L3 16"/></svg> UPDATE';
     }
